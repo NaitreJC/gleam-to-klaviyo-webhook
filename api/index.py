@@ -1,46 +1,45 @@
 from flask import Flask, request, jsonify
 import requests
+import os
 
 app = Flask(__name__)
 
-# Your Klaviyo API Key and List ID
-KLAVIYO_API_KEY = "pk_16a7765a5f4349e917377a37f9fdc115cf"
-KLAVIYO_LIST_ID = "TzK4Ps"
+KLAVIYO_API_KEY = "pk_16a7765a5f4349e917377a37f9fdc115cf"  # your real key
+KLAVIYO_LIST_ID = "TzK4Ps"  # your actual list ID
 
-@app.route("/", methods=["GET"])
-def index():
-    return "Klaviyo Webhook Listener is running."
-
-@app.route("/gleam-webhook", methods=["POST"])
-def gleam_webhook():
+@app.route("/", methods=["POST"])
+def subscribe_user():
     data = request.json
     email = data.get("email")
-    name = data.get("name", "")
+    first_name = data.get("first_name", "")
+    last_name = data.get("last_name", "")
 
     if not email:
-        return jsonify({"error": "Email missing from payload"}), 400
+        return jsonify({"error": "Missing email"}), 400
 
     payload = {
         "profiles": [
             {
                 "email": email,
-                "first_name": name
+                "first_name": first_name,
+                "last_name": last_name
             }
         ]
     }
 
     headers = {
-        "Authorization": f"Klaviyo-API-Key {KLAVIYO_API_KEY}",
-        "Content-Type": "application/json"
+        "Authorization": f"Bearer {KLAVIYO_API_KEY}",
+        "Content-Type": "application/json",
+        "revision": "2023-10-15"
     }
 
-    response = requests.post(
-        f"https://a.klaviyo.com/api/lists/{KLAVIYO_LIST_ID}/profiles/",
+    res = requests.post(
+        f"https://a.klaviyo.com/api/lists/{KLAVIYO_LIST_ID}/relationships/profiles/",
         headers=headers,
         json=payload
     )
 
-    if response.status_code == 200:
-        return jsonify({"status": "success"}), 200
+    if res.status_code in [200, 202]:
+        return jsonify({"success": True})
     else:
-        return jsonify({"error": response.text}), response.status_code
+        return jsonify({"error": res.json()}), res.status_code
